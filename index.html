@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Estadísticas - STGO. BALLERS</title>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            text-align: center; 
+            background-color: #222; 
+            color: white; 
+            margin: 0; 
+            padding: 10px; 
+        }
+        h2 { margin: 5px 0 15px 0; font-size: 20px; }
+        
+        #court-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px; 
+            margin: 0 auto;
+            aspect-ratio: 4/3; 
+            background-image: url('https://i.postimg.cc/yNpVzF4F/cancha.png');
+            background-color: #cda47b; 
+            background-size: cover;
+            background-position: center;
+            border: 2px solid #555;
+            border-radius: 8px;
+            overflow: hidden;
+            touch-action: manipulation; 
+        }
+        
+        /* Mejoras de Interfaz para las zonas */
+        .zone {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.85); 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 900;
+            color: #1967d2; 
+            border-radius: 50%; 
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s; 
+        }
+        
+        .zone:active { 
+            transform: scale(0.9); 
+            background-color: #e2e8f0;
+        } 
+        
+        #z0 { top: 5%; left: 4%; width: 15%; height: 15%; }
+        #z1 { top: 52%; left: 42%; width: 15%; height: 15%; }
+        #z2 { top: 5%; left: 80%; width: 15%; height: 15%; }
+        #z3 { top: 25%; left: 20%; width: 15%; height: 15%; }
+        #z4 { top: 25%; left: 65%; width: 15%; height: 15%; }
+        #z5 { top: 68%; left: 8%; width: 15%; height: 15%; }
+        #z6 { top: 80%; left: 42%; width: 15%; height: 15%; }
+        #z7 { top: 68%; left: 76%; width: 15%; height: 15%; }
+        
+        .controls { margin-top: 25px; display: flex; justify-content: space-around; }
+        button { padding: 15px 25px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; color: white; touch-action: manipulation; transition: background-color 0.2s; }
+        #btn-copy { background-color: #2ecc71; }
+        #btn-undo { background-color: #f39c12; }
+        #btn-reset { background-color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+    <h2>Contador de Tiros - OLD BALLERS</h2>
+    
+    <div id="court-container">
+        <div class="zone" id="z0" onclick="addShot(0)">0/10</div>
+        <div class="zone" id="z1" onclick="addShot(1)">0/10</div>
+        <div class="zone" id="z2" onclick="addShot(2)">0/10</div>
+        <div class="zone" id="z3" onclick="addShot(3)">0/10</div>
+        <div class="zone" id="z4" onclick="addShot(4)">0/10</div>
+        <div class="zone" id="z5" onclick="addShot(5)">0/10</div>
+        <div class="zone" id="z6" onclick="addShot(6)">0/10</div>
+        <div class="zone" id="z7" onclick="addShot(7)">0/10</div>
+    </div>
+
+    <div class="controls">
+        <button id="btn-copy" onclick="copyResults()">Copiar datos</button>
+        <button id="btn-undo" onclick="undo()">Deshacer último</button>
+        <button id="btn-reset" onclick="reset()">Resetear</button>
+    </div>
+    
+    <div id="results-container" style="margin-top: 16px; text-align: center; padding: 2px; background-color: #333; border-radius: 6px;">
+        <h3 id="total-title" style="margin-bottom: 15px; border-bottom: 1px solid #555; padding-bottom: 5px; font-size: 22px;">0% total</h3>
+        <div id="stats-list"></div>
+    </div>
+    
+    <script>
+        // 1. LocalStorage para evitar pérdida de datos
+        let counts = JSON.parse(localStorage.getItem('ob_counts')) || [0, 0, 0, 0, 0, 0, 0, 0];
+        let historyLog = JSON.parse(localStorage.getItem('ob_history')) || [];
+        
+        const zoneNames = [
+            "Triple esquina I", "Tiro libre", "Triple esquina D", "Mediana I", "Mediana D", 
+            "Triple 45° I", "Triple centro", "Triple 45° D"
+        ];
+
+        function saveStats() {
+            localStorage.setItem('ob_counts', JSON.stringify(counts));
+            localStorage.setItem('ob_history', JSON.stringify(historyLog));
+        }
+
+        // Inicializa la interfaz con los datos guardados al cargar la página
+        function initUI() {
+            for (let i = 0; i < counts.length; i++) {
+                document.getElementById('z' + i).innerText = counts[i] + "/10";
+            }
+            updateStats();
+        }
+
+        function addShot(zoneIndex) {
+            if (counts[zoneIndex] < 10) {
+                counts[zoneIndex]++;
+                historyLog.push(zoneIndex);
+                document.getElementById('z' + zoneIndex).innerText = counts[zoneIndex] + "/10";
+                
+                // 2. Respuesta táctil (vibración de 50ms)
+                if ("vibrate" in navigator) navigator.vibrate(50);
+                
+                updateStats();
+                saveStats();
+            } else {
+                alert("Ya llegaste a 10 tiros en esta zona.");
+            }
+        }
+
+        function undo() {
+            if (historyLog.length > 0) {
+                let lastZone = historyLog.pop();
+                counts[lastZone]--;
+                document.getElementById('z' + lastZone).innerText = counts[lastZone] + "/10";
+                updateStats();
+                saveStats();
+            }
+        }
+
+        function reset() {
+            if(confirm("¿Seguro que quieres borrar todos los datos del partido?")) {
+                counts = [0, 0, 0, 0, 0, 0, 0, 0];
+                historyLog = [];
+                for(let i = 0; i < counts.length; i++) {
+                    document.getElementById('z' + i).innerText = "0/10";
+                }
+                updateStats();
+                // Limpiar LocalStorage al resetear
+                localStorage.removeItem('ob_counts');
+                localStorage.removeItem('ob_history');
+            }
+        }
+
+        function updateStats() {
+            let statsHtml = "";
+            let totalMade = 0; 
+            
+            for (let i = 0; i < counts.length; i++) {
+                totalMade += counts[i];
+                let percentage = (counts[i] / 10) * 100;
+                
+                statsHtml += `
+                    <div style="margin-bottom: 10px; display: flex; align-items: center;">
+                        <span style="width: 150px; font-size: 14px;">${zoneNames[i]}</span>
+                        <div style="flex-grow: 1; background-color: #555; height: 15px; margin: 0 10px; border-radius: 3px;">
+                            <div style="width: ${percentage}%; background-color: #1967d2; height: 100%; border-radius: 3px; transition: width 0.3s;"></div>
+                        </div>
+                        <span style="min-width: 50px; font-size: 14px; text-align: right;">${percentage}%</span>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('stats-list').innerHTML = statsHtml;
+            
+            let totalPercentage = parseFloat(((totalMade / 80) * 100).toFixed(1));
+            document.getElementById('total-title').innerText = totalPercentage + "% efectividad total";
+        }
+
+        function copyResults() {
+            let resultText = "🏀 Estadísticas OLD BALLERS\n\n```\n";
+            let totalMade = 0;
+            
+            for (let i = 0; i < counts.length; i++) {
+                let percentage = parseFloat(((counts[i] / 10) * 100).toFixed(1));
+                let numPadded = String(counts[i]).padStart(2, '0');
+                
+                let numTxt = `${numPadded}/10`; 
+                let percTxt = `${percentage}%`.padStart(5);
+                let nameTxt = zoneNames[i].padEnd(17); 
+                
+                resultText += `${nameTxt} ${numTxt} ${percTxt}\n`;
+                totalMade += counts[i]; 
+            }
+            
+            let totalPercentage = parseFloat(((totalMade / 80) * 100).toFixed(1));
+            resultText += "-".repeat(29) + "\n";
+            
+            let totalStr = String(totalMade).padStart(2, '0');
+            let nameTxtTotal = "Efectividad Total".padEnd(17);
+            let numTxtTotal = `${totalStr}/80`;
+            let percTxtTotal = `${totalPercentage}%`.padStart(5);
+            
+            resultText += `${nameTxtTotal} ${numTxtTotal} ${percTxtTotal}\n\`\`\`\n\n`;
+            
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0'); 
+            const year = now.getFullYear();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            const timeStamp = `🗓️ ${day}/${month}/${year} ⏰ ${hours}:${minutes}`;
+            resultText += timeStamp;
+            
+            navigator.clipboard.writeText(resultText).then(() => {
+                // 4. Cambio temporal del texto del botón en lugar de alert()
+                let copyBtn = document.getElementById('btn-copy');
+                let originalText = copyBtn.innerText;
+                copyBtn.innerText = "¡Copiado! ✓";
+                copyBtn.style.backgroundColor = "#27ae60"; 
+                
+                setTimeout(() => {
+                    copyBtn.innerText = originalText;
+                    copyBtn.style.backgroundColor = "#2ecc71";
+                }, 2000);
+            }).catch(err => {
+                alert("Hubo un error al copiar.");
+            });
+        }
+
+        // Ejecutar al iniciar
+        initUI();
+        
+    </script>
+</body>
+</html>
